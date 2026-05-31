@@ -11,6 +11,7 @@ import './globals.css';
 import { getConfig } from '@/lib/config';
 
 import { GlobalErrorIndicator } from '../components/GlobalErrorIndicator';
+import { GlobalDOMErrorHandler } from '../components/GlobalDOMErrorHandler';
 import { ChunkErrorGuard } from '../components/ChunkErrorGuard';
 import NavigationShell from '../components/NavigationShell';
 import { SessionTracker } from '../components/SessionTracker';
@@ -150,6 +151,7 @@ export default async function RootLayout({
         />
       </head>
       <body
+        translate='no'
         className={`${inter.className} min-h-screen bg-white text-gray-900 dark:bg-black dark:text-gray-200`}
       >
         <ThemeProvider
@@ -163,6 +165,7 @@ export default async function RootLayout({
               <DownloadProvider>
                 <WatchRoomProvider>
                   <SiteProvider siteName={siteName} announcement={announcement}>
+                    <GlobalDOMErrorHandler />
                     <ChunkErrorGuard />
                     <SessionTracker />
                     <RouteWarmup />

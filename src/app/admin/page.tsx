@@ -149,6 +149,9 @@ interface AlertModalProps {
   message?: string;
   timer?: number;
   showConfirm?: boolean;
+  showUndo?: boolean; // 新增：显示撤销按钮
+  onUndo?: () => void; // 新增：撤销回调
+  undoTimer?: number; // 新增：撤销倒计时（毫秒）
 }
 
 const AlertModal = ({
@@ -158,22 +161,62 @@ const AlertModal = ({
   title,
   message,
   timer,
-  showConfirm = false
+  showConfirm = false,
+  showUndo = false,
+  onUndo,
+  undoTimer = 5000,
 }: AlertModalProps) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [isUndone, setIsUndone] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setIsVisible(true);
-      if (timer) {
-        setTimeout(() => {
+      setIsUndone(false);
+
+      // 如果有撤销功能，启动倒计时
+      if (showUndo && undoTimer) {
+        setCountdown(Math.ceil(undoTimer / 1000));
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        const closeTimer = setTimeout(() => {
+          if (!isUndone) {
+            onClose();
+          }
+        }, undoTimer);
+
+        return () => {
+          clearInterval(countdownInterval);
+          clearTimeout(closeTimer);
+        };
+      } else if (timer) {
+        // 普通定时关闭
+        const closeTimer = setTimeout(() => {
           onClose();
         }, timer);
+        return () => clearTimeout(closeTimer);
       }
     } else {
       setIsVisible(false);
     }
-  }, [isOpen, timer, onClose]);
+  }, [isOpen, timer, showUndo, undoTimer, onClose, isUndone]);
+
+  const handleUndo = () => {
+    setIsUndone(true);
+    if (onUndo) {
+      onUndo();
+    }
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -221,7 +264,31 @@ const AlertModal = ({
             </p>
           )}
 
-          {showConfirm && (
+          {/* 撤销按钮和倒计时 */}
+          {showUndo && countdown > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <span>将在 {countdown} 秒后执行</span>
+              </div>
+              <div className="flex gap-2 justify-center">
+                <button
+                  onClick={handleUndo}
+                  className={`px-4 py-2 text-sm font-medium ${buttonStyles.warning}`}
+                >
+                  撤销
+                </button>
+                <button
+                  onClick={onClose}
+                  className={`px-4 py-2 text-sm font-medium ${buttonStyles.secondary}`}
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 普通确认按钮 */}
+          {showConfirm && !showUndo && (
             <button
               onClick={onClose}
               className={`px-4 py-2 text-sm font-medium ${buttonStyles.primary}`}
@@ -245,6 +312,9 @@ const useAlertModal = () => {
     message?: string;
     timer?: number;
     showConfirm?: boolean;
+    showUndo?: boolean;
+    onUndo?: () => void;
+    undoTimer?: number;
   }>({
     isOpen: false,
     type: 'success',
@@ -846,7 +916,8 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
       | 'deleteUser',
     targetUsername: string,
     targetPassword?: string,
-    userGroup?: string
+    userGroup?: string,
+    options?: { skipToast?: boolean } // 新增：支持跳过通知
   ) => {
     try {
       const res = await fetch('/api/admin/user', {
@@ -867,23 +938,66 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
 
       // 成功后刷新配置（无需整页刷新）
       await refreshConfig();
+
+      // 根据操作类型决定是否显示通知
+      // 频繁的切换操作（启用/禁用）默认不显示通知，除非明确要求
+      const silentActions = ['ban', 'unban']; // 频繁操作，默认静默
+      const shouldShowToast = options?.skipToast === false || !silentActions.includes(action);
+
+      if (shouldShowToast) {
+        const actionMessages: Record<string, string> = {
+          add: '用户添加成功',
+          ban: '用户已禁用',
+          unban: '用户已启用',
+          setAdmin: '已设置为管理员',
+          cancelAdmin: '已取消管理员权限',
+          changePassword: '密码修改成功',
+          deleteUser: '用户删除成功',
+        };
+        showSuccess(actionMessages[action] || '操作成功', showAlert);
+      }
     } catch (err) {
       showError(err instanceof Error ? err.message : '操作失败', showAlert);
+      throw err;
     }
   };
 
   const handleConfirmDeleteUser = async () => {
     if (!deletingUser) return;
 
-    await withLoading(`deleteUser_${deletingUser}`, async () => {
-      try {
-        await handleUserAction('deleteUser', deletingUser);
-        setShowDeleteUserModal(false);
-        setDeletingUser(null);
-      } catch (err) {
-        // 错误处理已在 handleUserAction 中处理
-      }
+    // 关闭确认对话框
+    setShowDeleteUserModal(false);
+    const usernameToDelete = deletingUser;
+    setDeletingUser(null);
+
+    // 使用撤销模式：显示带撤销按钮的通知
+    let undoCancelled = false;
+
+    showAlert({
+      type: 'warning',
+      title: '用户删除中',
+      message: `用户 ${usernameToDelete} 将被删除，点击撤销可取消操作`,
+      showUndo: true,
+      undoTimer: 5000,
+      onUndo: () => {
+        undoCancelled = true;
+        showSuccess('已取消删除操作', showAlert);
+      },
     });
+
+    // 5秒后执行真正的删除
+    setTimeout(async () => {
+      if (!undoCancelled) {
+        await withLoading(`deleteUser_${usernameToDelete}`, async () => {
+          try {
+            await handleUserAction('deleteUser', usernameToDelete, undefined, undefined, { skipToast: true });
+            showSuccess(`用户 ${usernameToDelete} 已删除`, showAlert);
+          } catch (err) {
+            // 错误处理已在 handleUserAction 中处理
+          }
+        });
+      }
+    }, 5000);
   };
 
   if (!config) {
@@ -2850,6 +2964,9 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
         message={alertModal.message}
         timer={alertModal.timer}
         showConfirm={alertModal.showConfirm}
+        showUndo={alertModal.showUndo}
+        onUndo={alertModal.onUndo}
+        undoTimer={alertModal.undoTimer}
       />
 
 
@@ -4570,6 +4687,9 @@ const VideoSourceConfig = ({
         message={alertModal.message}
         timer={alertModal.timer}
         showConfirm={alertModal.showConfirm}
+        showUndo={alertModal.showUndo}
+        onUndo={alertModal.onUndo}
+        undoTimer={alertModal.undoTimer}
       />
 
       {/* 批量操作确认弹窗 */}
@@ -4981,6 +5101,9 @@ const CategoryConfig = ({
         message={alertModal.message}
         timer={alertModal.timer}
         showConfirm={alertModal.showConfirm}
+        showUndo={alertModal.showUndo}
+        onUndo={alertModal.onUndo}
+        undoTimer={alertModal.undoTimer}
       />
     </div>
   );
@@ -5216,6 +5339,9 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
         message={alertModal.message}
         timer={alertModal.timer}
         showConfirm={alertModal.showConfirm}
+        showUndo={alertModal.showUndo}
+        onUndo={alertModal.onUndo}
+        undoTimer={alertModal.undoTimer}
       />
     </div>
   );
@@ -6219,6 +6345,9 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
         message={alertModal.message}
         timer={alertModal.timer}
         showConfirm={alertModal.showConfirm}
+        showUndo={alertModal.showUndo}
+        onUndo={alertModal.onUndo}
+        undoTimer={alertModal.undoTimer}
       />
     </div>
   );
@@ -7366,6 +7495,9 @@ const LiveSourceConfig = ({
         message={alertModal.message}
         timer={alertModal.timer}
         showConfirm={alertModal.showConfirm}
+        showUndo={alertModal.showUndo}
+        onUndo={alertModal.onUndo}
+        undoTimer={alertModal.undoTimer}
       />
 
       {/* M3U 导入模态框 */}
@@ -7665,6 +7797,9 @@ const NetDiskConfig = ({
         message={alertModal.message}
         timer={alertModal.timer}
         showConfirm={alertModal.showConfirm}
+        showUndo={alertModal.showUndo}
+        onUndo={alertModal.onUndo}
+        undoTimer={alertModal.undoTimer}
       />
     </div>
   );
@@ -8304,6 +8439,9 @@ function AdminPageClient() {
         message={alertModal.message}
         timer={alertModal.timer}
         showConfirm={alertModal.showConfirm}
+        showUndo={alertModal.showUndo}
+        onUndo={alertModal.onUndo}
+        undoTimer={alertModal.undoTimer}
       />
 
       {/* 重置配置确认弹窗 */}

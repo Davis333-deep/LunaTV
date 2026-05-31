@@ -25,6 +25,7 @@ interface BannerItem {
   douban_id?: number;
   type?: string;
   trailerUrl?: string; // 预告片视频URL（可选）
+  tmdbLogo?: string; // TMDB logo URL（可选）
 }
 
 interface HeroBannerProps {
@@ -470,10 +471,24 @@ function HeroBanner({
       {/* 内容叠加层 - Netflix风格：左下角 */}
       <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20 pb-12 sm:pb-16 md:pb-20 lg:pb-24">
         <div className="space-y-3 sm:space-y-4 md:space-y-5 lg:space-y-6">
-          {/* 标题 - Netflix风格：超大字体 */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white drop-shadow-2xl leading-tight break-words">
-            {currentItem.title}
-          </h1>
+          {/* 标题 - Netflix风格：超大字体，有 TMDB logo 就显示图片 */}
+          {currentItem.tmdbLogo ? (
+            <div className="relative inline-block max-w-[70%]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={currentItem.tmdbLogo}
+                alt={currentItem.title}
+                className="max-h-16 sm:max-h-20 md:max-h-24 lg:max-h-28 w-auto object-contain"
+                style={{
+                  filter: 'drop-shadow(0 0 12px rgba(255,255,255,0.6)) drop-shadow(0 4px 8px rgba(0,0,0,0.9))',
+                }}
+              />
+            </div>
+          ) : (
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-white drop-shadow-2xl leading-tight break-words">
+              {currentItem.title}
+            </h1>
+          )}
 
           {/* 元数据 */}
           <div className="flex items-center gap-3 sm:gap-4 text-sm sm:text-base md:text-lg flex-wrap">

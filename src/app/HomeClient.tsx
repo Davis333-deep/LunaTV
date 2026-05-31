@@ -15,6 +15,7 @@ import { ShortDramaItem, ReleaseCalendarItem } from '@/lib/types';
 import { useClearFavoritesMutation } from '@/hooks/useFavoritesMutations';
 import { useClearRemindersMutation } from '@/hooks/useRemindersMutations';
 import { useHomePageQueries } from '@/hooks/useHomePageQueries';
+import { useTMDBLogos } from '@/hooks/useTMDBLogo';
 import { getDoubanDetails } from '@/lib/douban.client';
 import { DoubanItem } from '@/lib/types';
 import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
@@ -356,6 +357,24 @@ function HomeClient({ initialConfig }: {
       type: 'anime',
     }))
   ], [hotMovies, hotTvShows, hotVarietyShows, hotAnime]);
+
+  // 🚀 Fetch TMDB logos for hero banner items
+  const tmdbLogos = useTMDBLogos(
+    heroBannerItems.map(item => ({
+      title: item.title,
+      year: item.year,
+      type: item.type,
+    }))
+  );
+
+  // 🚀 Merge TMDB logos into hero banner items
+  const heroBannerItemsWithLogos = useMemo(() =>
+    heroBannerItems.map(item => ({
+      ...item,
+      tmdbLogo: tmdbLogos[item.title] || undefined,
+    })),
+    [heroBannerItems, tmdbLogos]
+  );
 
   // 🚀 Memoize enableVideo to prevent HeroBanner remount
   // Reading window.RUNTIME_CONFIG on every render can cause props to change
@@ -1285,10 +1304,10 @@ function HomeClient({ initialConfig }: {
             // 首页视图
             <>
               {/* Hero Banner 轮播 */}
-              {state.homePageConfig.showHeroBanner && heroBannerItems.length > 0 && (
+              {state.homePageConfig.showHeroBanner && heroBannerItemsWithLogos.length > 0 && (
                 <section className='mb-8'>
                   <HeroBanner
-                    items={heroBannerItems}
+                    items={heroBannerItemsWithLogos}
                     autoPlayInterval={8000}
                     showControls={true}
                     showIndicators={true}

@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   const title = searchParams.get('title')?.trim();
   const originalTitle = searchParams.get('original_title')?.trim();
   const year = searchParams.get('year')?.trim();
+  const stype = searchParams.get('stype')?.trim(); // 'movie' | 'tv'
 
   if (!title && !originalTitle) return NextResponse.json({ data: null }, { status: 400 });
 
@@ -42,12 +43,9 @@ export async function GET(request: NextRequest) {
   };
 
   const trySearch = async (query: string, type: 'movie' | 'tv') => {
-    const yearParam = year
-      ? type === 'movie' ? `&year=${year}` : `&first_air_date_year=${year}`
-      : '';
     try {
       const res = await fetch(
-        `${base}/search/${type}?api_key=${apiKey}&language=${lang}&query=${encodeURIComponent(query)}${yearParam}`,
+        `${base}/search/${type}?api_key=${apiKey}&language=${lang}&query=${encodeURIComponent(query)}`,
         { signal: AbortSignal.timeout(6000) }
       );
       if (!res.ok) return null;
@@ -103,9 +101,19 @@ export async function GET(request: NextRequest) {
   const searchQuery = cleanTitle(originalTitle || title!);
   const fallbackQuery = originalTitle && title ? cleanTitle(title) : null;
 
-  let data = (await trySearch(searchQuery, 'movie')) || (await trySearch(searchQuery, 'tv'));
+  // 根据 stype 决定搜索类型，没有 stype 则两种都搜
+  const types: Array<'movie' | 'tv'> = stype === 'movie' ? ['movie'] : stype === 'tv' ? ['tv'] : ['movie', 'tv'];
+
+  let data: any = null;
+  for (const type of types) {
+    data = await trySearch(searchQuery, type);
+    if (data) break;
+  }
   if (!data && fallbackQuery) {
-    data = (await trySearch(fallbackQuery, 'movie')) || (await trySearch(fallbackQuery, 'tv'));
+    for (const type of types) {
+      data = await trySearch(fallbackQuery, type);
+      if (data) break;
+    }
   }
 
   // 写入服务端缓存

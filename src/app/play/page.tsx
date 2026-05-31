@@ -513,6 +513,7 @@ function PlayPageClient() {
     const params = new URLSearchParams({ title: videoTitle });
     if (videoYear) params.set('year', videoYear);
     if (movieDetails?.original_title) params.set('original_title', movieDetails.original_title);
+    if (searchType) params.set('stype', searchType);
     fetch(`/api/tmdb/backdrop?${params.toString()}`)
       .then(r => r.ok ? r.json() : null)
       .then(json => {

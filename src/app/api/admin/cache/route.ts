@@ -97,6 +97,11 @@ export async function DELETE(request: NextRequest) {
         message = `已清理 ${clearedCount} 个豆瓣缓存项`;
         break;
 
+      case 'bangumi':
+        clearedCount = await clearBangumiCache();
+        message = `已清理 ${clearedCount} 个Bangumi缓存项`;
+        break;
+
       case 'shortdrama':
         clearedCount = await clearShortdramaCache();
         message = `已清理 ${clearedCount} 个短剧缓存项`;
@@ -177,6 +182,7 @@ async function getCacheStats() {
     console.warn('⚠️ 数据库缓存统计失败，返回空统计');
     return {
       douban: { count: 0, size: 0, types: {} },
+      bangumi: { count: 0, size: 0, types: {} },
       shortdrama: { count: 0, size: 0, types: {} },
       tmdb: { count: 0, size: 0, types: {} },
       danmu: { count: 0, size: 0 },
@@ -211,21 +217,28 @@ async function getCacheStats() {
 // 清理豆瓣缓存
 async function clearDoubanCache(): Promise<number> {
   let clearedCount = 0;
-  
-  // 清理数据库中的豆瓣缓存
+
   const dbCleared = await DatabaseCacheManager.clearCacheByType('douban');
   clearedCount += dbCleared;
 
-  // 清理localStorage中的豆瓣缓存（兜底）
   if (typeof localStorage !== 'undefined') {
-    const keys = Object.keys(localStorage).filter(key => 
-      key.startsWith('douban-') || key.startsWith('bangumi-')
-    );
-    keys.forEach(key => {
-      localStorage.removeItem(key);
-      clearedCount++;
-    });
-    console.log(`🗑️ localStorage中清理了 ${keys.length} 个豆瓣缓存项`);
+    const keys = Object.keys(localStorage).filter(key => key.startsWith('douban-'));
+    keys.forEach(key => { localStorage.removeItem(key); clearedCount++; });
+  }
+
+  return clearedCount;
+}
+
+// 清理 Bangumi 缓存
+async function clearBangumiCache(): Promise<number> {
+  let clearedCount = 0;
+
+  const dbCleared = await DatabaseCacheManager.clearCacheByType('bangumi');
+  clearedCount += dbCleared;
+
+  if (typeof localStorage !== 'undefined') {
+    const keys = Object.keys(localStorage).filter(key => key.startsWith('bangumi-'));
+    keys.forEach(key => { localStorage.removeItem(key); clearedCount++; });
   }
 
   return clearedCount;
@@ -445,6 +458,7 @@ async function clearExpiredCache(): Promise<number> {
 // 清理所有缓存
 async function clearAllCache(): Promise<number> {
   const doubanCount = await clearDoubanCache();
+  const bangumiCount = await clearBangumiCache();
   const shortdramaCount = await clearShortdramaCache();
   const tmdbCount = await clearTmdbCache();
   const danmuCount = await clearDanmuCache();
@@ -453,7 +467,7 @@ async function clearAllCache(): Promise<number> {
   const bilibiliCount = await clearBilibiliCache();
   const searchCount = await clearSearchCache();
 
-  return doubanCount + shortdramaCount + tmdbCount + danmuCount + netdiskCount + youtubeCount + bilibiliCount + searchCount;
+  return doubanCount + bangumiCount + shortdramaCount + tmdbCount + danmuCount + netdiskCount + youtubeCount + bilibiliCount + searchCount;
 }
 
 // 格式化字节大小
