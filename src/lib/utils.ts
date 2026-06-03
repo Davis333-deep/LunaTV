@@ -80,6 +80,26 @@ export {
   getDevicePerformanceLevel
 };
 
+function getBangumiImageProxyConfig(): {
+  proxyType: 'server' | 'cmliussss' | 'custom' | 'direct';
+  proxyUrl: string;
+} {
+  let bangumiImageProxyType: 'server' | 'cmliussss' | 'custom' | 'direct' = 'server';
+  let bangumiImageProxyUrl = '';
+
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    const storedType = localStorage.getItem('bangumiImageProxyType');
+    const runtimeType = (window as any).RUNTIME_CONFIG?.BANGUMI_IMAGE_PROXY_TYPE;
+    bangumiImageProxyType = (storedType || runtimeType || 'server') as 'server' | 'cmliussss' | 'custom' | 'direct';
+    bangumiImageProxyUrl =
+      localStorage.getItem('bangumiImageProxyUrl') ||
+      (window as any).RUNTIME_CONFIG?.BANGUMI_IMAGE_PROXY ||
+      '';
+  }
+
+  return { proxyType: bangumiImageProxyType, proxyUrl: bangumiImageProxyUrl };
+}
+
 function getDoubanImageProxyConfig(): {
   proxyType:
   | 'direct'
@@ -131,6 +151,23 @@ export function processImageUrl(originalUrl: string): string {
   // 处理 manmankan 图片防盗链
   if (originalUrl.includes('manmankan.com')) {
     return `/api/image-proxy?url=${encodeURIComponent(originalUrl)}`;
+  }
+
+  // Bangumi 图片代理（lain.bgm.tv 在国内无法直接访问）
+  if (originalUrl.includes('lain.bgm.tv') || originalUrl.includes('bgm.tv/pic')) {
+    const { proxyType: bangumiProxyType, proxyUrl: bangumiProxyUrl } = getBangumiImageProxyConfig();
+    switch (bangumiProxyType) {
+      case 'cmliussss':
+        return originalUrl.replace(/lain\.bgm\.tv/g, 'img.doubanio.cmliussss.net');
+      case 'custom':
+        if (bangumiProxyUrl) return `${bangumiProxyUrl}${encodeURIComponent(originalUrl)}`;
+        return `/api/proxy/logo?url=${encodeURIComponent(originalUrl)}`;
+      case 'direct':
+        return originalUrl;
+      case 'server':
+      default:
+        return `/api/proxy/logo?url=${encodeURIComponent(originalUrl)}`;
+    }
   }
 
   // 仅处理豆瓣图片代理
