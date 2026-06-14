@@ -14,6 +14,7 @@ import { GlobalErrorIndicator } from '../components/GlobalErrorIndicator';
 import { GlobalDOMErrorHandler } from '../components/GlobalDOMErrorHandler';
 import { DOMErrorBoundary } from '../components/DOMErrorBoundary';
 import { ChunkErrorGuard } from '../components/ChunkErrorGuard';
+import { TranslationWarningToast } from '../components/TranslationWarningToast';
 import NavigationShell from '../components/NavigationShell';
 import { SessionTracker } from '../components/SessionTracker';
 import { SiteProvider } from '../components/SiteProvider';
@@ -170,6 +171,7 @@ export default async function RootLayout({
                   <SiteProvider siteName={siteName} announcement={announcement}>
                     <GlobalDOMErrorHandler />
                     <ChunkErrorGuard />
+                    <TranslationWarningToast />
                     <SessionTracker />
                     <RouteWarmup />
                     {/* 导航栏在 layout 层，自动持久化 */}
