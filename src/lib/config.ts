@@ -211,7 +211,7 @@ async function getInitConfig(configFile: string, subConfig: {
   AutoUpdate: boolean;
   LastCheck: string;
 } = {
-    URL: "",
+    URL: process.env.NEXT_PUBLIC_SUB_URL || "",
     AutoUpdate: false,
     LastCheck: "",
   }): Promise<AdminConfig> {
@@ -238,9 +238,9 @@ async function getInitConfig(configFile: string, subConfig: {
       DoubanImageProxyType:
         process.env.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE || 'server',
       DoubanImageProxy: process.env.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY || '',
-      BangumiApiType: process.env.NEXT_PUBLIC_BANGUMI_API_TYPE || 'server',
+      BangumiApiType: process.env.NEXT_PUBLIC_BANGUMI_API_TYPE || 'cmliussss',
       BangumiApiProxy: process.env.NEXT_PUBLIC_BANGUMI_API_PROXY || '',
-      BangumiImageProxyType: process.env.NEXT_PUBLIC_BANGUMI_IMAGE_PROXY_TYPE || 'server',
+      BangumiImageProxyType: process.env.NEXT_PUBLIC_BANGUMI_IMAGE_PROXY_TYPE || 'cmliussss',
       BangumiImageProxy: process.env.NEXT_PUBLIC_BANGUMI_IMAGE_PROXY || '',
       DisableYellowFilter:
         process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
@@ -260,6 +260,14 @@ async function getInitConfig(configFile: string, subConfig: {
     SourceConfig: [],
     CustomCategories: [],
     LiveConfig: [],
+    TVBoxProxyConfig: {
+      enabled: false,
+      proxyUrl: process.env.NEXT_PUBLIC_CORSAPI_URL || 'https://corsapi.smone.workers.dev',
+    },
+    VideoProxyConfig: {
+      enabled: false,
+      proxyUrl: process.env.NEXT_PUBLIC_CORSAPI_URL || 'https://corsapi.smone.workers.dev',
+    },
   };
 
   // 补充用户信息
@@ -456,7 +464,10 @@ export async function configSelfCheck(adminConfig: AdminConfig): Promise<AdminCo
       enabled: true,                                    // 默认启用
       pansouUrl: 'https://so.252035.xyz',               // 默认公益服务
       timeout: 30,                                      // 默认30秒超时
-      enabledCloudTypes: ['baidu', 'aliyun', 'quark'] // 默认只启用百度、阿里、夸克三大主流网盘
+      enabledCloudTypes: ['baidu', 'aliyun', 'quark'], // 默认只启用百度、阿里、夸克三大主流网盘
+      token: '',
+      username: '',
+      password: '',
     };
   }
 

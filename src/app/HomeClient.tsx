@@ -298,7 +298,7 @@ function HomeClient({ initialConfig }: {
     return dataToUse;
   }, [homeData?.hotShortDramas, state.hotShortDramas, homeFetching]);
 
-  const bangumiCalendarData = homeData?.bangumiCalendar || [];
+  const bangumiCalendarData = Array.isArray(homeData?.bangumiCalendar) ? homeData.bangumiCalendar : [];
 
   // 🚀 Memoize HeroBanner items to prevent unnecessary re-renders
   // HeroBanner uses React.memo, but items array is recreated on every render
